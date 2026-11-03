@@ -1,0 +1,13 @@
+{
+  "name": "proekt-zala",
+  "private": true,
+  "description": "Редактор интерьера зала: 3D, план, электрика, чертежи",
+  "scripts": { "build": "python3 build.py" },
+  "devDependencies": {
+    "three": "0.147.0",
+    "@fontsource/golos-text": "^5.0.0",
+    "@fontsource/jetbrains-mono": "^5.0.0",
+    "@fontsource/unbounded": "^5.0.0",
+    "esbuild": "0.24.0"
+  }
+}

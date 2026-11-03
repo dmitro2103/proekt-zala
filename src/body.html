@@ -1,0 +1,156 @@
+<header class="top">
+  <div class="wrap top-row">
+    <div class="ttl">
+      <h1>Проект зала</h1>
+      <p class="lede">Редактор ремонта: двигай и растягивай мебель, меняй обои, пол, шторы, люстру и розетки. 3D, план, таблица и чертежи для мастеров обновляются сами.</p>
+    </div>
+    <div class="facts" id="facts"></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="toolbar" id="toolbar">
+      <div class="tb">
+        <button type="button" class="btn" id="undoBtn" title="Отменить (Ctrl+Z)" disabled><span aria-hidden="true">↶</span> Отменить</button>
+        <button type="button" class="btn" id="redoBtn" title="Повторить (Ctrl+Shift+Z)" disabled><span aria-hidden="true">↷</span> Повторить</button>
+      </div>
+      <div class="tb">
+        <button type="button" class="btn" id="shareBtn">Поделиться ссылкой</button>
+        <button type="button" class="btn" id="saveBtn">Сохранить файл</button>
+        <label class="btn" for="loadFile">Открыть файл</label><input type="file" id="loadFile" accept=".json,application/json" hidden>
+        <a class="btn primary" href="#sheets">Чертежи ↓</a>
+      </div>
+    </div>
+
+    <div class="editor" id="editor">
+      <div class="stage" id="stage" data-layout="3d">
+        <div class="stage-top">
+          <div class="seg" id="paneTabs" role="group" aria-label="Что показывать">
+            <button type="button" data-p="3d" aria-pressed="true">3D</button>
+            <button type="button" data-p="plan" aria-pressed="false">План</button>
+            <button type="button" data-p="split" aria-pressed="false" class="wide-only">3D + план</button>
+          </div>
+          <button type="button" class="chip" id="elToggle" aria-pressed="false"><span class="dot"></span>Электрика</button>
+        </div>
+        <div class="panes" id="panes">
+          <div class="pane" id="pane3d">
+            <div class="viewer" id="view3d">
+              <canvas id="c3d" tabindex="0" aria-label="3D-модель зала. Тяни, чтобы осмотреться; тяни предмет, чтобы переставить."></canvas>
+              <div class="tags" id="tags" hidden></div>
+              <div class="msg" id="msg">Строю 3D…</div>
+              <div class="hint" id="hint">Тяни пустое место — осмотреться · тяни предмет — переставить · колесо или щипок — ближе</div>
+            </div>
+          </div>
+          <div class="pane" id="panePlan" hidden>
+            <div class="planbox" id="planHost"></div>
+            <div class="plan-ui">
+              <div class="seg sm" id="planMode" role="group" aria-label="Слой плана">
+                <button type="button" data-m="furn" aria-pressed="true">Мебель</button>
+                <button type="button" data-m="elec" aria-pressed="false">Электрика</button>
+              </div>
+              <div class="zoom" role="group" aria-label="Масштаб плана">
+                <button type="button" id="zoomIn" aria-label="Крупнее">+</button>
+                <button type="button" id="zoomOut" aria-label="Мельче">−</button>
+                <button type="button" id="zoomFit" aria-label="Весь план" disabled>⤢</button>
+              </div>
+            </div>
+          </div>
+          <div class="selbar" id="selbar" hidden></div>
+        </div>
+        <div class="bar">
+          <div class="seg" id="views" role="group" aria-label="Ракурс">
+            <button type="button" data-v="entry" aria-pressed="true">От входа</button>
+            <button type="button" data-v="window" aria-pressed="false">От окна</button>
+            <button type="button" data-v="ne" aria-pressed="false">Из угла у стола</button>
+            <button type="button" data-v="sw" aria-pressed="false">Из угла у кровати</button>
+            <button type="button" data-v="top" aria-pressed="false">Сверху</button>
+            <button type="button" data-v="plan" aria-pressed="false">Строго сверху</button>
+          </div>
+          <div class="seg" id="mode" role="group" aria-label="Освещение">
+            <button type="button" data-m="day" aria-pressed="true">День</button>
+            <button type="button" data-m="eve" aria-pressed="false">Вечер</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side" id="side" aria-label="Настройки">
+        <div class="seg tabs" id="sideTabs" role="group" aria-label="Панели">
+          <button type="button" data-t="add" aria-pressed="true">Добавить</button>
+          <button type="button" data-t="obj" aria-pressed="false">Объект</button>
+          <button type="button" data-t="fin" aria-pressed="false">Отделка</button>
+          <button type="button" data-t="room" aria-pressed="false">Комната</button>
+        </div>
+        <div class="tabp" id="tab-add"></div>
+        <div class="tabp" id="tab-obj" hidden></div>
+        <div class="tabp" id="tab-fin" hidden></div>
+        <div class="tabp" id="tab-room" hidden></div>
+      </aside>
+    </div>
+  </div>
+
+  <section id="sheets">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <h2>Чертежи для застройщика</h2>
+          <p>Три листа А3 по правилам оформления (рамка, основная надпись, масштаб, условные обозначения). Это эскиз: размеры ориентировочные, их уточняют обмером. Листы перерисовываются при каждом изменении.</p>
+        </div>
+        <button type="button" class="btn primary" id="printBtn">Печать / PDF, А3</button>
+      </div>
+      <form class="meta" id="metaForm" autocomplete="off">
+        <label>Объект (адрес)<input name="object" maxlength="120" placeholder="Квартира, ул. …"></label>
+        <label>Разработал<input name="author" maxlength="40" placeholder="Фамилия"></label>
+        <label>Шифр<input name="code" maxlength="30" placeholder="ЗАЛ-01"></label>
+        <label>Организация<input name="org" maxlength="60" placeholder="необязательно"></label>
+      </form>
+      <div class="sheets">
+        <figure class="sheetfig"><figcaption><b>Лист 1.</b> План расстановки мебели, экспликация, ведомость отделки <button type="button" class="btn sm" data-dl="1">SVG</button></figcaption><div class="sheetbox" id="sheet1"></div></figure>
+        <figure class="sheetfig"><figcaption><b>Лист 2.</b> План электрики, обозначения, ведомость точек <button type="button" class="btn sm" data-dl="2">SVG</button></figcaption><div class="sheetbox" id="sheet2"></div></figure>
+        <figure class="sheetfig"><figcaption><b>Лист 3.</b> Развёртки стен с высотами точек <button type="button" class="btn sm" data-dl="3">SVG</button></figcaption><div class="sheetbox" id="sheet3"></div></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="points">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <h2>Точки электрики</h2>
+          <p>Высота — от чистого пола до центра коробки. Привязка — от угла до центра коробки. Нажми на строку — точка выделится в редакторе.</p>
+        </div>
+      </div>
+      <div class="tbl"><table id="elTable"></table></div>
+      <div class="totals" id="totals"></div>
+      <div class="cols">
+        <div class="note"><h3>Кабель и щиток</h3><ul id="cableNotes"></ul></div>
+        <div class="note"><h3>Что взял на глаз</h3><ul id="assume"></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="added">
+    <div class="wrap">
+      <div class="note">
+        <h3>Что добавил от себя</h3>
+        <ul>
+          <li><b>Тумба и два бра</b> у изголовья — кровать стоит в углу, свет нужен под рукой.</li>
+          <li><b>Проходной выключатель у кровати</b> (люстра выключается лёжа), <b>LED-подсветка стеллажа</b> на второй клавише у входа и <b>подсветка в шкафу</b>.</li>
+          <li><b>Розетки:</b> у дивана под торшер, у входа под пылесос, у шкафа под утюг, интернет (LAN) у стола и ТВ, резерв под кондиционер.</li>
+          <li><b>Кресло к столу, журнальный столик, ковёр, торшер, растение</b> — для вида, по желанию.</li>
+          <li><b>Светлые шторы и тюль</b> на потолочном карнизе, <b>кровать с подъёмным механизмом</b> — ещё место для хранения.</li>
+          <li>В редакторе: <b>акцентная стена</b>, дополнительные предметы в каталоге (кресло, пуф, комод, стеллаж, тумба под ТВ, полка, картина), <b>третий лист с развёртками стен</b>, ссылка «Поделиться» и сохранение в файл.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">Стены: А — оконная, Б — с проёмом в коридор, В — напротив окна, Г — напротив проёма. Всё хранится в этом браузере; чтобы показать другим — «Поделиться ссылкой». Перед заказом мебели перемерить.</div></footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="shareDlg" aria-labelledby="shareTtl">
+  <h3 id="shareTtl">Ссылка на проект</h3>
+  <p class="muted" id="shareMsg"></p>
+  <div class="shrow"><input id="shareUrl" readonly aria-label="Ссылка"><button type="button" class="btn primary" id="copyBtn">Копировать</button></div>
+  <div class="shfoot"><button type="button" class="btn" id="shareClose">Закрыть</button></div>
+</dialog>

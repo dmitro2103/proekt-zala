@@ -50,7 +50,7 @@ function select(kind, id, silent) {
 /* ---------- placing new things ---------- */
 function bbox(it) { const cs = corners(it), xs = cs.map(c => c[0]), zs = cs.map(c => c[1]); return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)]; }
 function overlapA(a, b) { const w = Math.min(a[2], b[2]) - Math.max(a[0], b[0]), h = Math.min(a[3], b[3]) - Math.max(a[1], b[1]); return w > 0 && h > 0 ? w * h : 0; }
-function keepOut() { const R = S.room, d = doorGeom(R), B = balcGeom(R), dw = B.d1 - B.d0; return [[R.W - 0.95, d.z0, R.W, d.z1], [B.d0, 0, B.d1, dw], [B.w0, 0, B.w1, 0.18]]; }
+function keepOut() { const R = S.room, d = doorGeom(R), B = winGeom(R); return [[R.W - 0.95, d.z0, R.W, d.z1], [B.w0, 0, B.w1, 0.2]]; }
 function byCentre(lo, hi, mid, step) { const out = []; for (let v = lo; v <= hi + 1e-6; v += step) out.push(r3(v)); return out.sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid)); }
 function freeSpot(it) {
   const R = S.room; if (it.type === 'rug') { it.x = R.W / 2; it.z = R.L / 2; return; }
@@ -63,7 +63,7 @@ function freeSpot(it) {
   if (best) { it.x = r3(best.x); it.z = r3(best.z); }
 }
 function wallBlocks(wl, skip) {
-  const R = S.room, B = balcGeom(R), d = doorGeom(R), bl = [];
+  const R = S.room, B = winGeom(R), d = doorGeom(R), bl = [];
   if (wl === 'N') bl.push([B.l - 0.08, B.r + 0.08, 0, B.top + 0.1]);
   if (wl === 'E') bl.push([d.z0 - d.cas - 0.05, d.z1 + d.cas + 0.05, 0, d.h + d.cas + 0.05]);
   for (const o of S.items) {
@@ -319,16 +319,19 @@ function renderRoomPanel() {
   const f = (path, label, v, min, max) => `<label class="rf"><span>${label}</span><span class="nin"><input type="number" data-room="${path}" value="${cmv(v)}" min="${min}" max="${max}" step="1" inputmode="numeric"><i>см</i></span></label>`;
   host.innerHTML = `<div class="grp"><h4>Комната</h4><div class="rgrid">${f('W', 'Ширина (стены А и В)', R.W, 260, 500)}${f('L', 'Длина (стены Б и Г)', R.L, 300, 800)}${f('H', 'Высота потолка', R.H, 240, 320)}</div></div>
 <div class="grp"><h4>Проём в коридор · стена Б</h4><div class="rgrid">${f('door.off', 'От стены В', R.door.off, 10, Math.round((R.L - 1) * 100))}${f('door.w', 'Ширина проёма', R.door.w, 60, 180)}</div></div>
-<div class="grp"><h4>Балконный блок · стена А</h4><div class="rgrid">${f('balc.x0', 'Дверь от стены Г', R.balc.x0, 15, Math.round(R.W * 100))}${f('balc.dw', 'Ширина двери', R.balc.dw, 60, 100)}${f('balc.ww', 'Ширина окна', R.balc.ww, 50, 220)}</div><div class="chips">${chip('rside', 'right', 'Окно справа от двери', R.balc.side === 'right')}${chip('rside', 'left', 'Окно слева', R.balc.side === 'left')}</div></div>
+<div class="grp"><h4>Окно · стена А</h4><div class="rgrid">${f('win.w', 'Ширина окна', R.win.w, 50, Math.round(Math.min(3, R.W - 0.3) * 100))}${f('win.x0', 'От стены Г до окна', R.win.x0, 15, Math.round((R.W - 0.15 - R.win.w) * 100))}${f('win.sill', 'Подоконник от пола', R.win.sill, 30, 120)}${f('win.top', 'Верх окна от пола', R.win.top, Math.round((R.win.sill + 0.6) * 100), Math.round((R.H - 0.1) * 100))}</div><div class="chips">${chip('rwin-center', '', 'Окно по центру стены', Math.abs(R.win.x0 - (R.W - R.win.w) / 2) < 0.006)}</div></div>
 <div class="grp"><h4>Площадь</h4><p class="area"><b>${fm(R.W * R.L, 1)} м²</b> пола · стены ≈ ${fm(wallArea(), 1)} м² · периметр ${fm(2 * (R.W + R.L), 2)} м</p><p class="muted">Размеры я снял с фото на глаз. Перемерь рулеткой и впиши сюда — мебель у дальних стен поедет вместе со стенами.</p></div>
 <div class="grp"><h4>Эталон и сброс</h4><div class="obtns col"><button type="button" class="btn primary" data-act="r-etalon">Вернуть эталон целиком</button>${UI.onEtalon && UI.mine ? '<button type="button" class="btn" data-act="r-mine">Вернуть мой вариант</button>' : ''}<button type="button" class="btn" data-act="r-default">Расстановка как в эталоне, размеры мои</button><button type="button" class="btn" data-act="r-clear">Убрать всю мебель</button><button type="button" class="btn" data-act="r-clear-el">Убрать всю электрику</button></div><p class="muted">Эталон — исходный проект: размеры с фото, жидкие обои, линолеум, вся мебель и электрика. Твой текущий вариант при этом откладывается, его можно вернуть. Второй вариант ставит мебель и розетки по эталону, но оставляет твои замеры и отделку.</p></div>`;
 }
-function wallArea() { const R = S.room, B = balcGeom(R), d = doorGeom(R); return 2 * (R.W + R.L) * R.H - (B.d1 - B.d0) * B.top - (B.w1 - B.w0) * (B.top - B.sill) - (d.z1 - d.z0) * d.h; }
+function wallArea() { const R = S.room, B = winGeom(R), d = doorGeom(R); return 2 * (R.W + R.L) * R.H - (B.w1 - B.w0) * (B.top - B.sill) - (d.z1 - d.z0) * d.h; }
 function applyRoom(path, cm) {
   const v = cm / 100; if (!isFinite(v)) return;
   const old = { W: S.room.W, L: S.room.L }, st = JSON.parse(JSON.stringify(S)), R = st.room;
   const [a, b] = path.split('.'); if (b) R[a][b] = v; else R[a] = v;
+  const wasCentred = Math.abs(S.room.win.x0 - (S.room.W - S.room.win.w) / 2) < 0.006;
+  if (wasCentred && path !== 'win.x0') R.win.x0 = (R.W - R.win.w) / 2;
   const NR = sanitizeState({ v: 2, room: JSON.parse(JSON.stringify(R)), items: [], elec: [], fin: st.fin, meta: st.meta }).room;
+  if (wasCentred && path !== 'win.x0') NR.win.x0 = r3((NR.W - NR.win.w) / 2);
   const dW = NR.W - old.W, dL = NR.L - old.L, n = st; // shift in old coordinates, normalise after
   if (Math.abs(dW) > 1e-6 || Math.abs(dL) > 1e-6) {
     for (const it of n.items) {
@@ -423,7 +426,7 @@ function bindPanels() {
       case 'lvar': if (o) { o.variant = v; commit(); } return;
       case 'lframe': if (o) { o.frame = v; commit(); } return;
       case 'lshade': if (o) { o.shade = v; commit(); } return;
-      case 'rside': S.room.balc.side = v; S = sanitizeState(JSON.parse(JSON.stringify(S))); reclampAll(); commit(); return;
+      case 'rwin-center': S.room.win.x0 = r3((S.room.W - S.room.win.w) / 2); S = sanitizeState(JSON.parse(JSON.stringify(S))); reclampAll(); commit(); return;
       case 'r-etalon': return toEtalon();
       case 'r-mine': return toMine();
       case 'r-default': { const R = JSON.parse(JSON.stringify(S.room)), d = makeDefault(R); S.items = d.items; S.elec = d.elec; SEL = null; commit(); select(null); toast('Вернул исходную расстановку', 'Отменить', undo); return; }

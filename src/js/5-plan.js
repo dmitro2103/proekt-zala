@@ -48,14 +48,11 @@ function itemTransform(it, k) {
 }
 /* walls, openings */
 function shellSym(R, k) {
-  const t = T3, W = R.W, L = R.L, B = balcGeom(R), d = doorGeom(R), X = v => v * k;
+  const t = T3, W = R.W, L = R.L, B = winGeom(R), d = doorGeom(R), X = v => v * k;
   const rect = (x0, z0, x1, z1, cls = 'wall') => svgR(cls, X(x0), X(z0), X(x1 - x0), X(z1 - z0));
   let s = rect(-t.W, -t.N, B.l, 0) + rect(B.r, -t.N, W + t.E, 0);
-  s += `<path class="win" d="M${X(B.w0)} ${X(-t.N)}H${X(B.w1)}M${X(B.w0)} ${X(0)}H${X(B.w1)}M${X(B.w0)} ${X(-0.20)}H${X(B.w1)}M${X(B.w0)} ${X(-0.15)}H${X(B.w1)}M${X(B.side === 'right' ? B.w1 : B.w0)} ${X(-t.N)}V${X(0)}"/>`;
-  s += rect(B.side === 'right' ? B.w0 : B.w0 - 0.04, -0.15, B.side === 'right' ? B.w1 + 0.04 : B.w1, 0.06, 'sill') + rect(B.w0 + 0.12, 0.08, B.w1 - 0.12, 0.15, 'rad');
-  const dw = B.d1 - B.d0, hinge = B.side === 'right' ? B.d0 : B.d1, other = B.side === 'right' ? B.d1 : B.d0;
-  s += `<path class="win" d="M${X(B.d0)} ${X(-0.20)}H${X(B.d1)}M${X(B.side === 'right' ? B.d0 : B.d1)} ${X(-t.N)}V${X(0)}"/>`;
-  s += `<path class="leaf" d="M${X(hinge)} ${X(0)}V${X(dw)}"/><path class="sw" d="M${X(hinge)} ${X(dw)}A${X(dw)} ${X(dw)} 0 0 ${B.side === 'right' ? 0 : 1} ${X(other)} ${X(0)}"/>`;
+  s += `<path class="win" d="M${X(B.w0)} ${X(-t.N)}H${X(B.w1)}M${X(B.w0)} ${X(-0.22)}H${X(B.w1)}M${X(B.w0)} ${X(-0.185)}H${X(B.w1)}M${X(B.w0)} ${X(-0.15)}H${X(B.w1)}M${X(B.w0)} ${X(-t.N)}V${X(0)}M${X(B.w1)} ${X(-t.N)}V${X(0)}"/>`;
+  s += rect(B.w0 - 0.05, -0.15, B.w1 + 0.05, 0.06, 'sill') + rect(B.w0 + 0.12, 0.08, B.w1 - 0.12, 0.15, 'rad');
   s += rect(W, -t.N, W + t.E, d.z0) + rect(W, d.z1, W + t.E, L + t.S) + `<path class="head" d="M${X(W)} ${X(d.z0)}V${X(d.z1)}M${X(W + t.E)} ${X(d.z0)}V${X(d.z1)}"/>`;
   s += rect(-t.W, L, W + t.E, L + t.S) + rect(-t.W, -t.N, 0, L + t.S);
   return s;
@@ -155,7 +152,7 @@ function elecChains(k, gap = 0.30, o = {}) {
 }
 /* overall room dimensions + wall marks (А Б В Г in circles) */
 function roomDims(k, gap = 0.30, o = {}) {
-  const R = S.room, t = T3, d = doorGeom(R), B = balcGeom(R);
+  const R = S.room, t = T3, d = doorGeom(R), B = winGeom(R);
   return dimChain('x', [0, B.l, B.r, R.W], -t.N - gap, -t.N, k, '', o) + dimChain('z', [0, d.z0, d.z1, R.L], R.W + t.E + gap, R.W + t.E, k, '', o) + dimChain('x', [0, R.W], R.L + t.S + gap, R.L + t.S, k, '', o) + dimChain('z', [0, R.L], -t.W - gap, -t.W, k, '', o);
 }
 function wallMarks(k, gap = 0.62, r = 0.11) {

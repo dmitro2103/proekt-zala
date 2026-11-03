@@ -1,5 +1,5 @@
 /* ============ 4. 3D scene: shell, sync, picking, dragging, modes ============ */
-function balcGeom(R) { R = R || S.room; const b = R.balc, d0 = b.x0, d1 = b.x0 + b.dw; let w0, w1; if (b.side === 'left') { w1 = d0; w0 = d0 - b.ww; } else { w0 = d1; w1 = d1 + b.ww; } return { d0, d1, w0, w1, top: 2.15, sill: 0.85, side: b.side, l: Math.min(d0, w0), r: Math.max(d1, w1) }; }
+function winGeom(R) { R = R || S.room; const w = R.win, w0 = w.x0, w1 = w.x0 + w.w; return { w0, w1, sill: w.sill, top: w.top, l: w0, r: w1, n: w.w > 1.95 ? 3 : w.w > 0.85 ? 2 : 1 }; }
 function doorGeom(R) { R = R || S.room; return { z0: R.L - R.door.off - R.door.w, z1: R.L - R.door.off, h: 2.05, cas: 0.07 }; }
 const T3 = { N: 0.30, E: 0.14, S: 0.16, W: 0.16 };
 const CORNICE = [[0, 0], [0.065, 0], [0.065, -0.012], [0.05, -0.02], [0.03, -0.035], [0.016, -0.055], [0.012, -0.075], [0, -0.075]];
@@ -22,7 +22,7 @@ function curtainPanel(x0, x1, folds, amp, m, zc, H) {
   g.computeVertexNormals(); return mesh(g, m, (x0 + x1) / 2, (H - 0.06) / 2 + 0.03, zc, true);
 }
 function buildShell() {
-  const G = new THREE.Group(), R = S.room, { W, L, H } = R, t = T3, B = balcGeom(R), d = doorGeom(R), fin = S.fin;
+  const G = new THREE.Group(), R = S.room, { W, L, H } = R, t = T3, B = winGeom(R), d = doorGeom(R), fin = S.fin;
   G3.walls = { N: [], E: [], S: [], W: [] }; G3.ceil = []; G3.ext = [];
   const addW = (k, ...o) => { for (const x of o) { G3.walls[k].push(x); G.add(x); } };
   const ext = (...o) => { for (const x of o) { G3.ext.push(x); G.add(x); } };
@@ -30,7 +30,7 @@ function buildShell() {
   const fmM = floorMaterial(fin.floor), ft = fmM.map; ft.repeat.set(W / ft.userData.wm, L / ft.userData.lm);
   const floor = mesh(new THREE.PlaneGeometry(W, L), fmM, W / 2, 0, L / 2, false); floor.rotation.x = -Math.PI / 2; floor.userData.floor = true; G.add(floor);
   const ceil = mesh(new THREE.PlaneGeometry(W + 0.34, L + 0.5), M.ceil, W / 2, H, L / 2, true); ceil.rotation.x = Math.PI / 2; G3.ceil.push(ceil); G.add(ceil);
-  const hole = B.side === 'left' ? [[B.w0, B.sill], [B.d0, B.sill], [B.d0, 0], [B.d1, 0], [B.d1, B.top], [B.w0, B.top]] : [[B.d0, 0], [B.d1, 0], [B.d1, B.sill], [B.w1, B.sill], [B.w1, B.top], [B.d0, B.top]];
+  const hole = [[B.w0, B.sill], [B.w1, B.sill], [B.w1, B.top], [B.w0, B.top]];
   addW('N', mesh(wallGeo(-t.W, W + t.E, H, t.N, [hole]), [wm('N'), M.reveal], 0, 0, -t.N));
   const wE = mesh(wallGeo(-t.N, L + t.S, H, t.E, [[[d.z0, 0], [d.z1, 0], [d.z1, d.h], [d.z0, d.h]]]), [wm('E'), M.reveal], W + t.E, 0, 0); wE.rotation.y = -Math.PI / 2; addW('E', wE);
   addW('S', mesh(wallGeo(-t.W, W + t.E, H, t.S, []), [wm('S'), M.reveal], 0, 0, L));
@@ -38,34 +38,29 @@ function buildShell() {
   const pc = fin.plinth === 'floor' ? (FLOOR_DEF[fin.floor] || FLOOR_DEF.lino).plinth : PLINTH[fin.plinth][1], PM = colMat(pc, 0.45);
   addW('N', profileAlong(CORNICE, W, M.cornice, V3(W, H, 0), V3(0, 0, 1)), profileAlong(CORNICE, W, M.cornice, V3(0, H, L), V3(0, 0, -1)));
   addW('E', profileAlong(CORNICE, L, M.cornice, V3(W, H, L), V3(-1, 0, 0))); addW('W', profileAlong(CORNICE, L, M.cornice, V3(0, H, 0), V3(1, 0, 0)));
-  addW('N', profileAlong(PLINTH_P, B.d0, PM, V3(B.d0, 0, 0), V3(0, 0, 1)), profileAlong(PLINTH_P, W - B.d1, PM, V3(W, 0, 0), V3(0, 0, 1)));
+  addW('N', profileAlong(PLINTH_P, W, PM, V3(W, 0, 0), V3(0, 0, 1)));
   addW('S', profileAlong(PLINTH_P, W, PM, V3(0, 0, L), V3(0, 0, -1)));
   addW('E', profileAlong(PLINTH_P, d.z0 - d.cas, PM, V3(W, 0, d.z0 - d.cas), V3(-1, 0, 0)), profileAlong(PLINTH_P, L - d.z1 - d.cas, PM, V3(W, 0, L), V3(-1, 0, 0)));
   addW('W', profileAlong(PLINTH_P, L, PM, V3(0, 0, 0), V3(1, 0, 0)));
   addW('E', box(W - 0.014, W, 0, d.h + d.cas, d.z0 - d.cas, d.z0, M.pvc), box(W - 0.014, W, 0, d.h + d.cas, d.z1, d.z1 + d.cas, M.pvc), box(W - 0.014, W, d.h, d.h + d.cas, d.z0 - d.cas, d.z1 + d.cas, M.pvc));
   ext(mesh(new THREE.BoxGeometry(1.5, H, 3.4), M.corr, W + t.E + 0.75, H / 2, (d.z0 + d.z1) / 2 + 0.2, true));
   const cf = mesh(new THREE.PlaneGeometry(1.5, 3.4), M.corrFloor, W + t.E + 0.75, 0.002, (d.z0 + d.z1) / 2 + 0.2, false); cf.rotation.x = -Math.PI / 2; ext(cf);
-  // balcony block
-  const fz0 = -0.22, fz1 = -0.15, fr = 0.065, fb = (a, b, y0, y1) => box(a, b, y0, y1, fz0, fz1, M.pvc), sz0 = fz1 - 0.005, sz1 = fz1 + 0.03, sb = (a, b, y0, y1) => box(a, b, y0, y1, sz0, sz1, M.pvc), sw = 0.075;
-  const mull = B.side === 'right' ? B.d1 : B.d0;
-  addW('N', fb(B.l, B.l + fr, B.l === B.d0 ? 0 : B.sill, B.top), fb(B.r - fr, B.r, B.r === B.d1 ? 0 : B.sill, B.top), fb(B.l, B.r, B.top - fr, B.top), fb(mull - 0.04, mull + 0.04, 0, B.top), fb(B.d0, B.d1, 0, 0.04), fb(B.w0, B.w1, B.sill, B.sill + fr));
-  const sx0 = B.d0 + (B.d0 === B.l ? fr : 0.04), sx1 = B.d1 - (B.d1 === B.r ? fr : 0.04), sy0 = 0.04, sy1 = B.top - fr;
-  addW('N', sb(sx0, sx0 + sw, sy0, sy1), sb(sx1 - sw, sx1, sy0, sy1), sb(sx0, sx1, sy1 - sw, sy1), sb(sx0, sx1, sy0, sy0 + sw), sb(sx0 + sw, sx1 - sw, sy0 + sw, 0.95), sb(sx0, sx1, 0.93, 1.0));
-  const hx = B.side === 'right' ? sx1 - 0.06 : sx0 + 0.035; addW('N', box(hx, hx + 0.025, 1.02, 1.17, sz1, sz1 + 0.05, M.whiteMetal));
+  // window: PVC frame, sashes, glass, sill board, radiator
+  const fz0 = -0.22, fz1 = -0.15, fr = 0.065, fb = (a, b, y0, y1) => box(a, b, y0, y1, fz0, fz1, M.pvc), sz0 = fz1 - 0.005, sz1 = fz1 + 0.03, sb = (a, b, y0, y1) => box(a, b, y0, y1, sz0, sz1, M.pvc), sw = 0.07;
   const glass = (a, b, y0, y1) => { const g = mesh(new THREE.PlaneGeometry(Math.max(b - a, 0.01), Math.max(y1 - y0, 0.01)), M.glass, (a + b) / 2, (y0 + y1) / 2, (fz0 + fz1) / 2, false); g.receiveShadow = false; g.renderOrder = 2; return g; };
-  addW('N', glass(sx0 + sw, sx1 - sw, 1.0, sy1 - sw));
-  const wx0 = B.w0 + (B.w0 === B.l ? fr : 0.04), wx1 = B.w1 - (B.w1 === B.r ? fr : 0.04), wide = wx1 - wx0 > 0.8, wmid = (wx0 + wx1) / 2;
-  if (wide) addW('N', fb(wmid - 0.035, wmid + 0.035, B.sill, B.top));
-  const ws0 = wx0, ws1 = wide ? wmid - 0.035 : wx1;
-  addW('N', sb(ws0, ws0 + sw, B.sill + fr, B.top - fr), sb(ws1 - sw, ws1, B.sill + fr, B.top - fr), sb(ws0, ws1, B.top - fr - sw, B.top - fr), sb(ws0, ws1, B.sill + fr, B.sill + fr + sw), glass(ws0 + sw, ws1 - sw, B.sill + fr + sw, B.top - fr - sw));
-  if (wide) addW('N', glass(wmid + 0.035, wx1, B.sill + fr, B.top - fr));
-  addW('N', box(B.side === 'right' ? B.w0 : B.w0 - 0.04, B.side === 'right' ? B.w1 + 0.04 : B.w1, B.sill - 0.03, B.sill, fz1, 0.06, M.pvc));
-  const rx0 = B.w0 + 0.12, rx1 = B.w1 - 0.12;
-  for (let x = rx0; x < rx1 - 0.05; x += 0.08) addW('N', rbox(x, x + 0.065, 0.14, 0.64, 0.04, 0.12, 0.012, M.pvc, 2));
-  addW('N', box(rx1 + 0.02, rx1 + 0.045, 0, 0.62, 0.05, 0.075, M.whiteMetal), box(rx1 + 0.06, rx1 + 0.085, 0, 0.62, 0.05, 0.075, M.whiteMetal));
-  ext(box(B.l - 0.7, B.r + 0.7, -0.22, -0.12, -t.N - 1.25, -t.N, M.balc), box(B.l - 0.7, B.r + 0.7, -0.12, 0.92, -t.N - 1.28, -t.N - 1.18, M.balc));
-  for (let x = B.l - 0.68; x <= B.r + 0.7; x += 0.62) ext(box(x - 0.03, x + 0.03, 0.92, 2.5, -t.N - 1.26, -t.N - 1.20, M.pvc));
-  ext(box(B.l - 0.7, B.r + 0.7, 0.92, 0.98, -t.N - 1.27, -t.N - 1.19, M.pvc), box(B.l - 0.7, B.r + 0.7, 2.44, 2.56, -t.N - 1.27, -t.N - 1.19, M.pvc), box(B.l - 0.7, B.r + 0.7, 2.56, 2.66, -t.N - 1.3, -t.N, M.balc));
+  addW('N', fb(B.w0, B.w0 + fr, B.sill, B.top), fb(B.w1 - fr, B.w1, B.sill, B.top), fb(B.w0, B.w1, B.top - fr, B.top), fb(B.w0, B.w1, B.sill, B.sill + fr));
+  const ix0 = B.w0 + fr, ix1 = B.w1 - fr, iy0 = B.sill + fr, iy1 = B.top - fr, cw = (ix1 - ix0) / B.n;
+  for (let i = 0; i < B.n; i++) {
+    const a = ix0 + i * cw + (i ? 0.035 : 0), b = ix0 + (i + 1) * cw - (i < B.n - 1 ? 0.035 : 0);
+    if (i) addW('N', fb(ix0 + i * cw - 0.035, ix0 + i * cw + 0.035, iy0, iy1));
+    const opens = B.n === 1 || i === (B.n === 3 ? 0 : B.n - 1) || (B.n === 3 && i === 2); // side sashes open, the middle one is fixed
+    if (opens) { addW('N', sb(a, a + sw, iy0, iy1), sb(b - sw, b, iy0, iy1), sb(a, b, iy1 - sw, iy1), sb(a, b, iy0, iy0 + sw), glass(a + sw, b - sw, iy0 + sw, iy1 - sw)); const hx = i === 0 && B.n > 1 ? b - 0.055 : a + 0.03; addW('N', box(hx, hx + 0.025, (iy0 + iy1) / 2 - 0.06, (iy0 + iy1) / 2 + 0.09, sz1, sz1 + 0.05, M.whiteMetal)); }
+    else addW('N', glass(a, b, iy0, iy1));
+  }
+  addW('N', box(B.w0 - 0.05, B.w1 + 0.05, B.sill - 0.03, B.sill, fz1, 0.06, M.pvc));
+  const rx0 = B.w0 + 0.12, rx1 = B.w1 - 0.12, rh = Math.min(0.5, B.sill - 0.25);
+  for (let x = rx0; x < rx1 - 0.05; x += 0.08) addW('N', rbox(x, x + 0.065, 0.14, 0.14 + rh, 0.04, 0.12, 0.012, M.pvc, 2));
+  addW('N', box(rx1 + 0.02, rx1 + 0.045, 0, 0.12 + rh, 0.05, 0.075, M.whiteMetal), box(rx1 + 0.06, rx1 + 0.085, 0, 0.12 + rh, 0.05, 0.075, M.whiteMetal));
   const sky = new THREE.Mesh(new THREE.PlaneGeometry(34, 17), M.sky); sky.position.set(W / 2, 3.2, -9); ext(sky);
   // curtains
   const ct = fin.curt;
@@ -73,18 +68,18 @@ function buildShell() {
     addW('N', box(0.02, W - 0.02, H - 0.025, H, 0.10, 0.24, M.pvc));
     const cm = mat('curt:' + ct.type + ct.color, () => std({ color: toInt(ct.color), roughness: 1, side: THREE.DoubleSide, bumpMap: fabricBump(), bumpScale: ct.type === 'blackout' ? 0.001 : 0.002 }, 0.8));
     if (ct.type === 'roman') {
-      const top = B.top + 0.02, drop = 0.55, a = B.w0 + 0.02, b = B.w1 - 0.02, n = 4;
+      const top = B.top + 0.02, drop = Math.min(0.55, (B.top - B.sill) * 0.45), a = B.w0 + 0.02, b = B.w1 - 0.02, n = 4;
       for (let i = 0; i < n; i++) { const y1 = top - i * drop / n, y0 = y1 - drop / n; const f = rbox(a, b, y0, y1, -0.13, -0.10, 0.012, cm, 2); f.scale.z = 1; addW('N', f); }
-      if (ct.tulle) { const tl = curtainPanel(Math.max(0.05, B.l - 0.2), Math.min(W - 0.05, B.r + 0.05), 20, 0.012, M.tulle, 0.145, H); tl.castShadow = false; tl.receiveShadow = false; tl.renderOrder = 3; addW('N', tl); }
+      if (ct.tulle) { const tl = curtainPanel(Math.max(0.05, B.l - 0.25), Math.min(W - 0.05, B.r + 0.25), 20, 0.012, M.tulle, 0.145, H); tl.castShadow = false; tl.receiveShadow = false; tl.renderOrder = 3; addW('N', tl); }
     } else {
-      const heavy = ct.type === 'blackout', lA = Math.max(0.05, B.l - 1.0), lB = Math.max(lA + 0.2, B.l - 0.12), rA = Math.min(W - 0.25, B.r), rB = Math.min(W - 0.04, B.r + 0.9);
+      const heavy = ct.type === 'blackout', lA = 0.05, lB = Math.max(lA + 0.3, B.l + 0.12), rB = W - 0.05, rA = Math.min(rB - 0.3, B.r - 0.12); // open panels stacked at the sides, rod wall to wall
       addW('N', curtainPanel(lA, lB, heavy ? 8 : 7, heavy ? 0.055 : 0.045, cm, 0.20, H), curtainPanel(rA, rB, Math.max(3, Math.round((rB - rA) * 9)), heavy ? 0.05 : 0.04, cm, 0.20, H));
-      if (ct.tulle) { const tl = curtainPanel(Math.max(0.05, B.l - 0.2), Math.min(W - 0.05, B.r + 0.05), 20, 0.012, M.tulle, 0.145, H); tl.castShadow = false; tl.receiveShadow = false; tl.renderOrder = 3; addW('N', tl); }
+      if (ct.tulle) { const tl = curtainPanel(Math.max(0.05, B.l - 0.25), Math.min(W - 0.05, B.r + 0.25), 20, 0.012, M.tulle, 0.145, H); tl.castShadow = false; tl.receiveShadow = false; tl.renderOrder = 3; addW('N', tl); }
     }
   }
   // light rigs follow the room
   G3.sun.position.set(B.r + 1.4, 4.6, -3.8); G3.sun.target.position.set(W * 0.42, 0, Math.min(2.3, L * 0.4));
-  G3.sky.width = B.r - B.l; G3.sky.height = B.top - 0.2; G3.sky.position.set((B.l + B.r) / 2, (B.top + 0.2) / 2 + 0.1, 0.03); G3.sky.lookAt((B.l + B.r) / 2, 1.0, 3);
+  G3.sky.width = B.r - B.l; G3.sky.height = B.top - B.sill; G3.sky.position.set((B.l + B.r) / 2, (B.top + B.sill) / 2, 0.03); G3.sky.lookAt((B.l + B.r) / 2, 1.0, 3);
   G3.bounce.width = W; G3.bounce.height = L; G3.bounce.position.set(W / 2, 0.03, L / 2); G3.bounce.lookAt(W / 2, 3, L / 2);
   return G;
 }

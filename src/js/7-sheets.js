@@ -164,9 +164,9 @@ function itemNote(it) {
   return '';
 }
 function itemDims(it) { if (CAT[it.type].wall) return it.type === 'shelf' ? `${mm(it.w)}×${mm(it.d)}` : `${mm(it.w)}×${mm(it.h)}`; return it.type === 'rug' ? `${mm(it.w)}×${mm(it.d)}` : `${mm(it.w)}×${mm(it.d)}×${mm(it.h)}`; }
-function wallAreaOf(w) { const R = S.room, B = balcGeom(R), d = doorGeom(R); let a = wallLen(w, R) * R.H; if (w === 'N') a -= (B.d1 - B.d0) * B.top + (B.w1 - B.w0) * (B.top - B.sill); if (w === 'E') a -= (d.z1 - d.z0) * d.h; return a; }
+function wallAreaOf(w) { const R = S.room, B = winGeom(R), d = doorGeom(R); let a = wallLen(w, R) * R.H; if (w === 'N') a -= (B.w1 - B.w0) * (B.top - B.sill); if (w === 'E') a -= (d.z1 - d.z0) * d.h; return a; }
 function finishRows() {
-  const R = S.room, f = S.fin, area = R.W * R.L, B = balcGeom(R), d = doorGeom(R), plin = 2 * (R.W + R.L) - (B.d1 - B.d0) - (d.z1 - d.z0);
+  const R = S.room, f = S.fin, area = R.W * R.L, d = doorGeom(R), plin = 2 * (R.W + R.L) - (d.z1 - d.z0);
   const wd = w => w.type === 'pattern' ? `Обои с узором «${PATTERNS[w.pattern]}», фон — ${colorName(w.color)}${w.color2 ? ', рисунок — ' + colorName(w.color2) : ''}` : `${WALLT[w.type]}, ${colorName(w.color)}`;
   const rows = [['Потолок', 'Натяжной, существующий — без изменений', fm(area, 1) + ' м²', 'Люстра на прежнем месте']];
   const all = WALLS.reduce((a, w) => a + wallAreaOf(w), 0);
@@ -276,13 +276,14 @@ const NEIGH = { N: ['W', 'E'], E: ['N', 'S'], S: ['E', 'W'], W: ['S', 'N'] };
 function levelMark(x, y, t) { return `<path class="lvm" d="M${n1(x)} ${n1(y)}l-1.4 -1.4h2.8z"/>` + ln('lvl', x, y - 1.4, x, y - 4.4) + ln('lvl', x, y - 4.4, x - 12, y - 4.4) + tx(x - 6, y - 5.2, t, 2.5, 'middle'); }
 function elevation(w, k, X0, Y0) {
   const R = S.room, len = wallLen(w, R), H = R.H, rev = w === 'S' || w === 'W', U = v => rev ? len - v : v, px = u => X0 + u * k, py = v => Y0 - v * k, F = 2.5 / k;
-  const B = balcGeom(R), d = doorGeom(R), lab = elecLabels(), along = (x, z) => (w === 'N' || w === 'S') ? x : z, stops = [0, len];
+  const B = winGeom(R), d = doorGeom(R), lab = elecLabels(), along = (x, z) => (w === 'N' || w === 'S') ? x : z, stops = [0, len];
   let s = '';
   if (w === 'N') {
-    const fr = 0.065; s += rc('eo', px(B.d0), py(B.top), (B.d1 - B.d0) * k, B.top * k) + rc('eo2', px(B.d0 + fr), py(B.top - fr), (B.d1 - B.d0 - 2 * fr) * k, (B.top - fr - 0.04) * k);
+    const fr = 0.065, cw = (B.w1 - B.w0 - 2 * fr) / B.n;
     s += rc('eo', px(B.w0), py(B.top), (B.w1 - B.w0) * k, (B.top - B.sill) * k) + rc('eo2', px(B.w0 + fr), py(B.top - fr), (B.w1 - B.w0 - 2 * fr) * k, (B.top - B.sill - 2 * fr) * k);
-    if (B.w1 - B.w0 > 0.8) s += ln('eo2', px((B.w0 + B.w1) / 2), py(B.top - fr), px((B.w0 + B.w1) / 2), py(B.sill + fr));
-    s += rc('erad', px(B.w0 + 0.12), py(0.64), (B.w1 - B.w0 - 0.24) * k, 0.5 * k); stops.push(B.d0, B.d1, B.w0, B.w1);
+    for (let i = 1; i < B.n; i++) s += ln('eo2', px(B.w0 + fr + i * cw), py(B.top - fr), px(B.w0 + fr + i * cw), py(B.sill + fr));
+    for (let i = 0; i < B.n; i++) { if (!(B.n === 1 || (B.n === 2 && i === 1) || (B.n === 3 && i !== 1))) continue; const a0 = B.w0 + fr + i * cw, a1 = a0 + cw, hinge = B.n === 3 && i === 0 ? a0 : a1, free = hinge === a0 ? a1 : a0; s += `<path class="eo2" style="stroke-dasharray:1.2 .8" d="M${n1(px(free))} ${n1(py(B.top - fr))}L${n1(px(hinge))} ${n1(py((B.top + B.sill) / 2))}L${n1(px(free))} ${n1(py(B.sill + fr))}"/>`; }
+    s += rc('eo', px(B.w0 - 0.05), py(B.sill), (B.w1 - B.w0 + 0.1) * k, 0.03 * k) + rc('erad', px(B.w0 + 0.12), py(0.14 + Math.min(0.5, B.sill - 0.25)), (B.w1 - B.w0 - 0.24) * k, Math.min(0.5, B.sill - 0.25) * k); stops.push(B.w0, B.w1);
   }
   if (w === 'E') { s += rc('eo2', px(d.z0 - d.cas), py(d.h + d.cas), (d.z1 - d.z0 + 2 * d.cas) * k, (d.h + d.cas) * k) + rc('eo', px(d.z0), py(d.h), (d.z1 - d.z0) * k, d.h * k) + tx(px((d.z0 + d.z1) / 2), py(1.0), 'проём', 2.2, 'middle', 'fen'); stops.push(d.z0, d.z1); }
   for (const it of S.items) {
@@ -326,7 +327,7 @@ function elevation(w, k, X0, Y0) {
   lbls.sort((p, q) => q.y - p.y || p.x - q.x); const placed = [];
   for (const L of lbls) { const w2 = L.t.length * 0.66 * 2.3 / 2 + 0.4; let y = L.y; for (let g = 0; g < 6 && placed.some(P => Math.abs(P.x - L.x) < P.w2 + w2 && Math.abs(P.y - y) < 2.6); g++) y -= 2.7; placed.push({ x: L.x, y, w2 }); s += tx(L.x, y, L.t, 2.3, 'middle', 'b'); }
   s += rc('ew', px(0), py(H), len * k, H * k) + ln('egnd', px(0) - 3, py(0), px(len) + 3, py(0));
-  const hs = [...new Set(pts.map(e => r3(e.h)))];
+  const hs = [...new Set([...pts.map(e => r3(e.h)), ...(w === 'N' ? [B.sill, B.top] : w === 'E' ? [d.h] : [])])];
   s += `<g transform="translate(${n1(px(len) + 8)} ${n1(Y0)})">${dimChain('z', [0, ...hs.map(v => -v), -H], 0, -8 / k, k, '', { fs: F })}</g>`;
   s += `<g transform="translate(${n1(X0)} ${n1(Y0)})">${dimChain('x', stops, 7.5 / k, 0, k, '', { fs: F })}</g>`;
   s += ln('ext', px(0) - 1, py(H), px(0) - 4.5, py(H)) + ln('ext', px(0) - 1, py(0), px(0) - 4.5, py(0)) + levelMark(px(0) - 3, py(H), '+' + fm(H, 3)) + levelMark(px(0) - 3, py(0), '±0,000');
@@ -336,7 +337,7 @@ function elevation(w, k, X0, Y0) {
   return s;
 }
 function keyPlan(x, y, maxW, maxH) {
-  const R = S.room, k = Math.min(9, (maxW - 14) / R.W, (maxH - 18) / R.L), B = balcGeom(R), d = doorGeom(R), X = v => x + 7 + v * k, Y = v => y + 9 + v * k;
+  const R = S.room, k = Math.min(9, (maxW - 14) / R.W, (maxH - 18) / R.L), B = winGeom(R), d = doorGeom(R), X = v => x + 7 + v * k, Y = v => y + 9 + v * k;
   let s = tx(x, y + 3.6, 'Схема развёрток', 3.5, 'start', 'ttl');
   s += `<path class="kp" d="M${n1(X(0))} ${n1(Y(0))}H${n1(X(B.l))}M${n1(X(B.r))} ${n1(Y(0))}H${n1(X(R.W))}V${n1(Y(d.z0))}M${n1(X(R.W))} ${n1(Y(d.z1))}V${n1(Y(R.L))}H${n1(X(0))}V${n1(Y(0))}"/>`;
   s += `<path class="win" d="M${n1(X(B.l))} ${n1(Y(0))}H${n1(X(B.r))}"/>`;

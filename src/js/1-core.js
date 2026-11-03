@@ -99,7 +99,7 @@ const ELADD = [
 ];
 
 /* ---------- state ---------- */
-const DEF_ROOM = { W: 3.30, L: 5.90, H: 2.60, door: { off: 1.15, w: 0.90 }, balc: { x0: 1.13, dw: 0.75, ww: 1.10, side: 'right' } };
+const DEF_ROOM = { W: 3.30, L: 5.90, H: 2.60, door: { off: 1.15, w: 0.90 }, win: { x0: 0.90, w: 1.50, sill: 0.85, top: 2.15 } };
 const ROOM_LIM = { W: [2.6, 5.0], L: [3.0, 8.0], H: [2.4, 3.2] };
 let S = null, SEL = null;
 
@@ -217,9 +217,8 @@ function sanitizeState(st) {
   for (const k of ['W', 'L', 'H']) R[k] = r3(clamp(isFinite(+R[k]) ? +R[k] : DEF_ROOM[k], ROOM_LIM[k][0], ROOM_LIM[k][1]));
   R.door = { off: clamp(+(R.door && R.door.off) || 1.15, 0.1, R.L - 1.0), w: clamp(+(R.door && R.door.w) || 0.9, 0.6, 1.8) };
   if (R.door.off + R.door.w > R.L - 0.1) R.door.off = Math.max(0.1, R.L - 0.1 - R.door.w);
-  const b = R.balc || {}; R.balc = { dw: clamp(+b.dw || 0.75, 0.6, 1.0), ww: clamp(+b.ww || 1.1, 0.5, 2.2), side: b.side === 'left' ? 'left' : 'right', x0: 0 };
-  const span = R.balc.dw + R.balc.ww; R.balc.x0 = r3(clamp(isFinite(+b.x0) ? +b.x0 : 1.13, 0.15, Math.max(0.15, R.W - 0.15 - (R.balc.side === 'right' ? span : R.balc.dw))));
-  if (R.balc.side === 'left') R.balc.x0 = r3(clamp(R.balc.x0, Math.min(0.15 + R.balc.ww, R.W - 0.15 - R.balc.dw), R.W - 0.15 - R.balc.dw));
+  const wn = R.win || {}, ww = r3(clamp(+wn.w || 1.5, 0.5, Math.min(3.0, R.W - 0.3))), sill = r3(clamp(+wn.sill || 0.85, 0.3, 1.2)); // old saves had a balcony block here: it is a plain window
+  R.win = { w: ww, x0: r3(clamp(isFinite(+wn.x0) && R.win ? +wn.x0 : (R.W - ww) / 2, 0.15, R.W - 0.15 - ww)), sill, top: r3(clamp(+wn.top || 2.15, sill + 0.6, R.H - 0.1)) }; delete R.balc;
   const out = { v: 2, room: R, items: [], elec: [], fin: Object.assign({}, d.fin, st.fin || {}), meta: Object.assign({}, d.meta, st.meta || {}) };
   out.fin.wall = Object.assign({}, d.fin.wall, out.fin.wall); out.fin.accent = Object.assign({}, d.fin.accent, out.fin.accent); out.fin.curt = Object.assign({}, d.fin.curt, out.fin.curt);
   for (const w of [out.fin.wall, out.fin.accent]) { if (!WALLT[w.type]) w.type = 'liquid'; if (!PATTERNS[w.pattern]) w.pattern = 'damask'; if (!/^#[0-9a-f]{6}$/i.test(w.color)) w.color = '#F2EEE7'; if (w.color2 && !/^#[0-9a-f]{6}$/i.test(w.color2)) w.color2 = ''; }

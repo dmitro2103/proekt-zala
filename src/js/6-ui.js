@@ -321,7 +321,7 @@ function renderRoomPanel() {
 <div class="grp"><h4>Проём в коридор · стена Б</h4><div class="rgrid">${f('door.off', 'От стены В', R.door.off, 10, Math.round((R.L - 1) * 100))}${f('door.w', 'Ширина проёма', R.door.w, 60, 180)}</div></div>
 <div class="grp"><h4>Балконный блок · стена А</h4><div class="rgrid">${f('balc.x0', 'Дверь от стены Г', R.balc.x0, 15, Math.round(R.W * 100))}${f('balc.dw', 'Ширина двери', R.balc.dw, 60, 100)}${f('balc.ww', 'Ширина окна', R.balc.ww, 50, 220)}</div><div class="chips">${chip('rside', 'right', 'Окно справа от двери', R.balc.side === 'right')}${chip('rside', 'left', 'Окно слева', R.balc.side === 'left')}</div></div>
 <div class="grp"><h4>Площадь</h4><p class="area"><b>${fm(R.W * R.L, 1)} м²</b> пола · стены ≈ ${fm(wallArea(), 1)} м² · периметр ${fm(2 * (R.W + R.L), 2)} м</p><p class="muted">Размеры я снял с фото на глаз. Перемерь рулеткой и впиши сюда — мебель у дальних стен поедет вместе со стенами.</p></div>
-<div class="grp"><h4>Начать заново</h4><div class="obtns col"><button type="button" class="btn" data-act="r-default">Вернуть мой исходный проект</button><button type="button" class="btn" data-act="r-clear">Убрать всю мебель</button><button type="button" class="btn" data-act="r-clear-el">Убрать всю электрику</button></div><p class="muted">Всё отменяется кнопкой «Отменить» или Ctrl+Z.</p></div>`;
+<div class="grp"><h4>Эталон и сброс</h4><div class="obtns col"><button type="button" class="btn primary" data-act="r-etalon">Вернуть эталон целиком</button>${UI.onEtalon && UI.mine ? '<button type="button" class="btn" data-act="r-mine">Вернуть мой вариант</button>' : ''}<button type="button" class="btn" data-act="r-default">Расстановка как в эталоне, размеры мои</button><button type="button" class="btn" data-act="r-clear">Убрать всю мебель</button><button type="button" class="btn" data-act="r-clear-el">Убрать всю электрику</button></div><p class="muted">Эталон — исходный проект: размеры с фото, жидкие обои, линолеум, вся мебель и электрика. Твой текущий вариант при этом откладывается, его можно вернуть. Второй вариант ставит мебель и розетки по эталону, но оставляет твои замеры и отделку.</p></div>`;
 }
 function wallArea() { const R = S.room, B = balcGeom(R), d = doorGeom(R); return 2 * (R.W + R.L) * R.H - (B.d1 - B.d0) * B.top - (B.w1 - B.w0) * (B.top - B.sill) - (d.z1 - d.z0) * d.h; }
 function applyRoom(path, cm) {
@@ -343,6 +343,45 @@ function applyRoom(path, cm) {
     }
   }
   n.room = NR; S = sanitizeState(n); reclampAll(); commit();
+}
+
+/* ---------- etalon: the original project, always restorable ---------- */
+const MINE_KEY = 'proekt-zala-mine';
+function designKey(st) { // ids are random, so compare by position: same room, finishes, things and wiring
+  const map = {}; st.items.forEach((it, i) => { map[it.id] = 'i' + i; }); st.elec.forEach((e, i) => { map[e.id] = 'e' + i; });
+  const items = st.items.map(it => Object.assign({}, it, { id: map[it.id] }));
+  const elec = st.elec.map(e => Object.assign({}, e, { id: map[e.id] }, e.kind === 'switch' ? { keys: e.keys.map(k => k.map(t => t.startsWith('led:') ? 'led:' + (map[t.slice(4)] || '?') : (map[t] || '?'))) } : {}));
+  return JSON.stringify([st.room, st.fin, items, elec]);
+}
+function etalonState() { // makeDefault with stable ids, so "is this the etalon?" can be answered
+  const d = makeDefault(DEF_ROOM), map = {};
+  d.items.forEach((it, i) => { map[it.id] = it.id = 'et-i' + (i + 1); });
+  d.elec.forEach((e, i) => { map[e.id] = e.id = 'et-e' + (i + 1); });
+  for (const e of d.elec) if (e.kind === 'switch') e.keys = e.keys.map(k => k.map(t => t.startsWith('led:') ? 'led:' + (map[t.slice(4)] || t.slice(4)) : (map[t] || t)));
+  return sanitizeState(d);
+}
+let ETALON_KEY = '';
+function isEtalon() { if (!ETALON_KEY) ETALON_KEY = designKey(etalonState()); return designKey(S) === ETALON_KEY; }
+function saveMine() { try { localStorage.setItem(MINE_KEY, JSON.stringify({ on: UI.onEtalon, st: UI.mine })); } catch (e) { } }
+function loadMine() { try { const t = JSON.parse(localStorage.getItem(MINE_KEY) || 'null'); if (t && t.st) { UI.mine = sanitizeState(t.st); UI.mineKey = designKey(UI.mine); UI.onEtalon = !!t.on; } } catch (e) { } }
+function toEtalon(quiet) {
+  const et = etalonState();
+  if (designKey(S) === designKey(et)) { if (!quiet) toast('Сейчас и так открыт эталон — исходный проект'); return; }
+  if (!UI.onEtalon) { UI.mine = JSON.parse(JSON.stringify(S)); UI.mineKey = designKey(UI.mine); UI.onEtalon = true; saveMine(); } // keep the first pocketed variant while working from the etalon
+  et.meta = Object.assign({}, S.meta); S = et; SEL = null; ED.view = null;
+  commit(); select(null); if (G3.ok) goTo('entry');
+  toast('Открыт эталон — исходный проект. Твой вариант отложен.', 'Вернуть мой', toMine);
+}
+function toMine() {
+  if (!UI.mine) return; const st = sanitizeState(JSON.parse(JSON.stringify(UI.mine)));
+  st.meta = Object.assign({}, S.meta); S = st; SEL = null; UI.onEtalon = false; saveMine();
+  commit(); select(null); toast('Вернул твой вариант', 'Снова эталон', toEtalon);
+}
+function updateEtalonUI() {
+  if (UI.onEtalon && UI.mineKey && designKey(S) === UI.mineKey) { UI.onEtalon = false; saveMine(); } // back in own variant (e.g. by undo)
+  const et = isEtalon(), b = $('#etalonBtn'), m = $('#mineBtn');
+  if (b) { b.setAttribute('aria-pressed', String(et)); b.title = et ? 'Сейчас открыт эталон — исходный проект' : 'Вернуть исходный проект целиком (твой вариант отложится)'; }
+  if (m) m.hidden = !(UI.onEtalon && UI.mine);
 }
 
 /* ---------- events ---------- */
@@ -385,6 +424,8 @@ function bindPanels() {
       case 'lframe': if (o) { o.frame = v; commit(); } return;
       case 'lshade': if (o) { o.shade = v; commit(); } return;
       case 'rside': S.room.balc.side = v; S = sanitizeState(JSON.parse(JSON.stringify(S))); reclampAll(); commit(); return;
+      case 'r-etalon': return toEtalon();
+      case 'r-mine': return toMine();
       case 'r-default': { const R = JSON.parse(JSON.stringify(S.room)), d = makeDefault(R); S.items = d.items; S.elec = d.elec; SEL = null; commit(); select(null); toast('Вернул исходную расстановку', 'Отменить', undo); return; }
       case 'r-clear': S.items = []; for (const e of S.elec) if (e.kind === 'switch') e.keys = e.keys.map(k => k.filter(t => !t.startsWith('led:'))); SEL = null; commit(); select(null); toast('Мебель убрана', 'Отменить', undo); return;
       case 'r-clear-el': S.elec = []; SEL = null; commit(); select(null); toast('Электрика убрана', 'Отменить', undo); return;

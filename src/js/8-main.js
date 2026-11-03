@@ -41,7 +41,7 @@ function scheduleSheets(now) { clearTimeout(sheetT); if (now) renderSheets(); el
 function updateUndo() { $('#undoBtn').disabled = !HIST.past.length; $('#redoBtn').disabled = !HIST.future.length; }
 function fillMeta() { for (const k of ['object', 'author', 'code', 'org']) { const i = $(`#metaForm [name="${k}"]`); if (i && i !== document.activeElement) i.value = S.meta[k] || ''; } }
 function renderAll() {
-  fixSel(); sync3D(); renderPlan(); renderProps(); renderSelBar(); renderFinish(); renderRoomPanel();
+  fixSel(); updateEtalonUI(); sync3D(); renderPlan(); renderProps(); renderSelBar(); renderFinish(); renderRoomPanel();
   renderTable(); renderNotes(); renderFacts(); fillMeta(); updateUndo(); scheduleSheets();
 }
 
@@ -72,6 +72,7 @@ function doPrint() { clearTimeout(sheetT); renderSheets(); setTimeout(() => wind
 
 function bindGlobal() {
   $('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
+  $('#etalonBtn').onclick = () => toEtalon(); $('#mineBtn').onclick = toMine;
   $('#shareBtn').onclick = () => share().catch(e => toast('Не вышло собрать ссылку: ' + esc(e.message)));
   $('#copyBtn').onclick = copyShare; $('#shareClose').onclick = () => { const d = $('#shareDlg'); d.close ? d.close() : d.removeAttribute('open'); };
   $('#saveBtn').onclick = saveFile; $('#loadFile').onchange = ev => { loadFile(ev.target.files[0]); ev.target.value = ''; };
@@ -110,11 +111,12 @@ function bindGlobal() {
 }
 async function boot() {
   let st = null, fromLink = false;
-  const m = location.hash.match(/[#&]v=([A-Za-z0-9_-]+)/);
+  const m = location.hash.match(/[#&]v=([A-Za-z0-9_-]+)/), wantEtalon = /^#etalon\b/.test(location.hash);
   if (m) { try { st = await decodeState(m[1]); fromLink = true; } catch (e) { st = null; } }
   if (!st) st = loadLocal();
-  S = sanitizeState(st);
-  if (fromLink) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { } saveLocal(); }
+  S = st ? sanitizeState(st) : etalonState();
+  if (fromLink || wantEtalon) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { } if (fromLink) saveLocal(); }
+  loadMine();
   resetHistory();
   renderAddPanel(); bindPanels(); bindGlobal(); initPlanEditor();
   const ok = init3D();
@@ -124,7 +126,8 @@ async function boot() {
   setLayout(window.innerWidth >= 1100 && ok ? 'split' : ok ? '3d' : 'plan');
   showTab('add'); renderAll(); scheduleSheets(true);
   if (fromLink) toast('Открыт проект по ссылке — правки сохраняются у тебя');
+  else if (wantEtalon) toEtalon(true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { renderPlan(); });
-  if (/[?&]test\b/.test(location.search)) window.__zal = { get S() { return S; }, set S(v) { S = v; }, get SEL() { return SEL; }, select, addItem, addElec, goTo, setLayout, setElMode, undo, redo, commit, renderSheets, sheet1, sheet2, sheet3, encodeState, decodeState, G3, ED, HIST, applyRoom, finAct, delSel, dupSel, rotSel };
+  if (/[?&]test\b/.test(location.search)) window.__zal = { get S() { return S; }, set S(v) { S = v; }, get SEL() { return SEL; }, UI, toEtalon, toMine, isEtalon, select, addItem, addElec, goTo, setLayout, setElMode, undo, redo, commit, renderSheets, sheet1, sheet2, sheet3, encodeState, decodeState, G3, ED, HIST, applyRoom, finAct, delSel, dupSel, rotSel };
 }
 boot();
